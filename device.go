@@ -251,6 +251,28 @@ func (d Device) List(remotePath string) (devFileInfos []DeviceFileInfo, err erro
 	return
 }
 
+func (d Device) Logcat(params ...string) (io.ReadCloser, error) {
+	command := "logcat"
+	if len(params) > 0 {
+		command = fmt.Sprintf("%s %s", "logcat", strings.Join(params, " "))
+	}
+
+	tp, err := d.createDeviceTransport()
+	if err != nil {
+		return nil, err
+	}
+
+	if err = tp.Send(fmt.Sprintf("shell:%s", command)); err != nil {
+		return nil, err
+	}
+
+	if err = tp.VerifyResponse(); err != nil {
+		return nil, err
+	}
+
+	return tp.sock, nil
+}
+
 func (d Device) PushFile(local *os.File, remotePath string, modification ...time.Time) (err error) {
 	if len(modification) == 0 {
 		var stat os.FileInfo
