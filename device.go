@@ -53,6 +53,12 @@ type DeviceForward struct {
 	// RemoteProtocol string
 }
 
+type DeviceReverse struct {
+	Serial string
+	Local  string
+	Remote string
+}
+
 type Device struct {
 	adbClient Client
 	serial    string
@@ -154,6 +160,45 @@ func (d Device) ForwardList() (deviceForwardList []DeviceForward, err error) {
 func (d Device) ForwardKill(localPort int) (err error) {
 	local := fmt.Sprintf("tcp:%d", localPort)
 	_, err = d.adbClient.executeCommand(fmt.Sprintf("host-serial:%s:killforward:%s", d.serial, local), true)
+	return
+}
+
+func (d Device) Reverse(localPort, remotePort int, noRebind ...bool) (err error) {
+	command := ""
+	local := fmt.Sprintf("tcp:%d", localPort)
+	remote := fmt.Sprintf("tcp:%d", remotePort)
+
+	if len(noRebind) != 0 && noRebind[0] {
+		command = fmt.Sprintf("reverse:forward:norebind:%s;%s", local, remote)
+	} else {
+		command = fmt.Sprintf("reverse:forward:%s;%s", local, remote)
+	}
+	_, err = d.executeCommand(command, true)
+	return
+}
+
+func (d Device) ReverseList() (reverseList []DeviceReverse, err error) {
+	var resp []byte
+	if resp, err = d.executeCommand("reverse:list-forward"); err != nil {
+		return nil, err
+	}
+	fmt.Println(string(resp))
+	lines := strings.Split(string(resp), "\n")
+
+	for i := range lines {
+		line := strings.TrimSpace(lines[i])
+		if line == "" {
+			continue
+		}
+		fields := strings.Fields(line)
+		reverseList = append(reverseList, DeviceReverse{Serial: fields[0], Local: fields[1], Remote: fields[2]})
+	}
+
+	return reverseList, nil
+}
+
+func (d Device) ReverseKill(localPort int) (err error) {
+	_, err = d.executeCommand(fmt.Sprintf("reverse:killforward:tcp:%d", localPort), true)
 	return
 }
 
