@@ -39,12 +39,14 @@ func (sync syncTransport) SendStream(reader io.Reader) (err error) {
 		tmp := make([]byte, syncMaxChunkSize)
 		var n int
 		n, err = reader.Read(tmp)
+		if n > 0 {
+			if sendErr := sync.sendChunk(tmp[:n]); sendErr != nil {
+				return sendErr
+			}
+		}
 		if err == io.EOF {
 			err = nil
 			break
-		}
-		if err == nil {
-			err = sync.sendChunk(tmp[:n])
 		}
 	}
 
