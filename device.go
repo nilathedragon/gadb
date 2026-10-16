@@ -1,6 +1,7 @@
 package gadb
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -63,6 +64,11 @@ type Device struct {
 	adbClient Client
 	serial    string
 	attrs     map[string]string
+}
+
+func (d Device) WithContext(ctx context.Context) Device {
+	d.adbClient = d.adbClient.WithContext(ctx)
+	return d
 }
 
 func (d Device) HasAttribute(key string) bool {
@@ -228,14 +234,18 @@ func (d Device) EnableAdbOverTCP(port ...int) (err error) {
 }
 
 func (d Device) createDeviceTransport() (tp transport, err error) {
-	if tp, err = newTransport(fmt.Sprintf("%s:%d", d.adbClient.host, d.adbClient.port)); err != nil {
+	if tp, err = d.adbClient.createTransport(); err != nil {
 		return transport{}, err
 	}
 
 	if err = tp.Send(fmt.Sprintf("host:transport:%s", d.serial)); err != nil {
+		_ = tp.Close()
 		return transport{}, err
 	}
 	err = tp.VerifyResponse()
+	if err != nil {
+		_ = tp.Close()
+	}
 	return
 }
 

@@ -63,6 +63,9 @@ func (s *shellTransport) Read() (command shellMessageType, data []byte, err erro
 	if err != nil {
 		return command, nil, fmt.Errorf("failed to read response msg len: %w", err)
 	}
+	if msgLen > 1<<20 {
+		return command, nil, fmt.Errorf("shell packet exceeds 1 MiB: %d", msgLen)
+	}
 	data, err = s.ReadBytesN(int(msgLen))
 	if err != nil {
 		return command, data, fmt.Errorf("failed to read response msg body: %w", err)

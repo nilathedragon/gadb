@@ -1,6 +1,7 @@
 package gadb
 
 import (
+	"context"
 	"fmt"
 	"strconv"
 	"strings"
@@ -10,6 +11,7 @@ const AdbServerPort = 5037
 const AdbDaemonPort = 5555
 
 type Client struct {
+	ctx  context.Context
 	host string
 	port int
 }
@@ -19,6 +21,12 @@ func NewClient() (Client, error) {
 }
 
 func NewClientWith(host string, port ...int) (adbClient Client, err error) {
+	return NewClientWithContext(context.Background(), host, port...)
+}
+
+// NewClientWithContext checks the server using cancellable network I/O.
+func NewClientWithContext(ctx context.Context, host string, port ...int) (adbClient Client, err error) {
+	adbClient.ctx = ctx
 	if len(port) == 0 {
 		port = []int{AdbServerPort}
 	}
@@ -187,7 +195,12 @@ func (c Client) KillServer() (err error) {
 }
 
 func (c Client) createTransport() (tp transport, err error) {
-	return newTransport(fmt.Sprintf("%s:%d", c.host, c.port))
+	return newTransportContext(c.ctx, fmt.Sprintf("%s:%d", c.host, c.port))
+}
+
+func (c Client) WithContext(ctx context.Context) Client {
+	c.ctx = ctx
+	return c
 }
 
 func (c Client) executeCommand(command string, onlyVerifyResponse ...bool) (resp string, err error) {

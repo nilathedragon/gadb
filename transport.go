@@ -1,6 +1,7 @@
 package gadb
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -17,15 +18,26 @@ var DefaultAdbReadTimeout time.Duration = 60 * time.Second
 type transport struct {
 	sock        net.Conn
 	readTimeout time.Duration
+	stopCancel  func() bool
 }
 
 func newTransport(address string, readTimeout ...time.Duration) (tp transport, err error) {
+	return newTransportContext(context.Background(), address, readTimeout...)
+}
+
+func newTransportContext(ctx context.Context, address string, readTimeout ...time.Duration) (tp transport, err error) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
 	if len(readTimeout) == 0 {
 		readTimeout = []time.Duration{DefaultAdbReadTimeout}
 	}
 	tp.readTimeout = readTimeout[0]
-	if tp.sock, err = net.Dial("tcp", address); err != nil {
+	if tp.sock, err = (&net.Dialer{}).DialContext(ctx, "tcp", address); err != nil {
 		err = fmt.Errorf("adb transport: %w", err)
+	} else {
+		conn := tp.sock
+		tp.stopCancel = context.AfterFunc(ctx, func() { _ = conn.Close() })
 	}
 	return
 }
@@ -102,6 +114,9 @@ func (t transport) ReadBytesN(size int) (raw []byte, err error) {
 }
 
 func (t transport) Close() (err error) {
+	if t.stopCancel != nil {
+		t.stopCancel()
+	}
 	if t.sock == nil {
 		return nil
 	}

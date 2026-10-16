@@ -206,6 +206,10 @@ func (s *Session) Start(cmd string) error {
 					}
 				}
 			case shellExit: // exit
+				if len(msg) != 1 {
+					s.errorChan <- errors.New("invalid shell exit status packet")
+					return
+				}
 				exitCode := int(msg[0])
 				err := s.closeFiles()
 				if err != nil {
