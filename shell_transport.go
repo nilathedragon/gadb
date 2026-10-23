@@ -51,6 +51,7 @@ func (s *shellTransport) Send(command shellMessageType, data []byte) (err error)
 }
 
 func (s *shellTransport) Read() (command shellMessageType, data []byte, err error) {
+	_ = s.sock.SetReadDeadline(time.Time{})
 	err = binary.Read(s.sock, binary.LittleEndian, &command)
 	if err == io.EOF {
 		return 255, nil, err
@@ -74,7 +75,6 @@ func (s *shellTransport) Read() (command shellMessageType, data []byte, err erro
 }
 
 func (s *shellTransport) ReadBytesN(size int) (raw []byte, err error) {
-	_ = s.sock.SetReadDeadline(time.Time{})
 	return _readN(s.sock, size)
 }
 
